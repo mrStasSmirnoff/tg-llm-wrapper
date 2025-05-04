@@ -28,7 +28,19 @@
       "ru": "🗑️ Контекст очищен. Начинаем заново."
     },
     "help": {
-      "en": "**Commands**\n/start – show buttons\n/systemprompt – set prompt\n/resetcontext – clear history\n/help – help",
-      "ru": "**Команды**\n/start – показать кнопки\n/systemprompt – задать промпт\n/resetcontext – очистить историю\n/help – помощь"
+      "en": "**Commands**\n/start – show buttons\n/systemprompt – set prompt\n/resetcontext – clear history\n/help – help\n/showprompt – show current prompt",
+      "ru": "**Команды**\n/start – показать кнопки\n/systemprompt – задать промпт\n/resetcontext – очистить историю\n/help – помощь\n/showprompt – показать текущий промпт"
+    },
+    "button_show": {
+    "en": "🔍 Show Prompt",
+    "ru": "🔍 Показать промпт"
+    },
+    "show_prompt": {
+        "en": "💬 *Current system prompt:*  \n```{prompt}```",
+        "ru": "💬 *Текущий системный промпт:*  \n```{prompt}```"
+    },
+    "no_prompt": {
+        "en": "⚠️ No custom prompt set. Using default behavior.",
+        "ru": "⚠️ Пользовательский промпт не задан. Используется стандартный."
     }
   }

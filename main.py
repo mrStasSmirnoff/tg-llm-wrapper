@@ -63,7 +63,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     keyboard = [
         [InlineKeyboardButton(t("button_edit", lang), callback_data='edit_system_prompt')],
-        [InlineKeyboardButton(t("button_reset", lang), callback_data='reset_ctx')]
+        [InlineKeyboardButton(t("button_reset", lang), callback_data='reset_ctx')],
+        [InlineKeyboardButton(t("button_show", lang), callback_data='show_prompt')]
     ]
     # a lightweight container that tells Telegram how to arrange one or more buttons into rows/columns
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -104,6 +105,13 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             t("ctx_reset", lang),
             parse_mode="Markdown"
         )
+    elif query.data == "show_prompt":
+        prompt = context.user_data.get("system_prompt")
+        if prompt:
+            text = t("show_prompt", lang).format(prompt=prompt)
+        else:
+            text = t("no_prompt", lang)
+        await query.message.reply_text(text, parse_mode="Markdown")
 
 
 ## System Prompt Command
@@ -127,6 +135,16 @@ async def set_system_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE)-
         f"{t('prompt_saved', lang)}\nYour current system prompt(Системный промпт):\n{prompt_text}",
         parse_mode="Markdown"
     )
+
+# Current system prompt
+async def show_prompt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_lang(update)
+    prompt = context.user_data.get("system_prompt", None)
+    if prompt:
+        text = t("show_prompt", lang).format(prompt=prompt)
+    else:
+        text = t("no_prompt", lang)
+    await update.message.reply_text(text, parse_mode="Markdown")
 
 
 async def reset_context_command(update: Update, context: ContextTypes.DEFAULT_TYPE)-> None:
@@ -233,6 +251,9 @@ def main():
 
     # /reset_ctx
     application.add_handler(CommandHandler("resetcontext", reset_context_command))
+
+    # /showprompt
+    application.add_handler(CommandHandler("showprompt", show_prompt_command))
 
     #Inline button callback
     application.add_handler(CallbackQueryHandler(callback_query_handler))
