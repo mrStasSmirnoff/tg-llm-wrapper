@@ -43,6 +43,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     keyboard = [
         [InlineKeyboardButton("Edit System Prompt", callback_data='edit_system_prompt')],
+        [InlineKeyboardButton("Reset Context 🔄", callback_data='reset_ctx')]
     ]
     # a lightweight container that tells Telegram how to arrange one or more buttons into rows/columns
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -65,7 +66,6 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     We look at 'callback_data' to see what the user clicked.
     """
     query = update.callback_query
-
     await query.answer()
 
     if query.data == "edit_system_prompt":
@@ -73,6 +73,11 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         await query.message.reply_text(
             "Please enter a new system prompt with:\n"
             "/systemprompt <Your new prompt>"
+        )
+    elif query.data == "reset_ctx":
+        context.user_data['history'] = []
+        await query.message.reply_text(
+            "Context reset! New converstation started.\n"
         )
 
 
@@ -95,6 +100,18 @@ async def set_system_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE)-
     await update.message.reply_text(
         f"System prompt updated!\nYour current system prompt:\n{prompt_text}"
     )
+
+
+async def reset_context_command(update: Update, context: ContextTypes.DEFAULT_TYPE)-> None:
+    """
+    /resetcontext:
+    Reset the context for the current user.
+    """
+    context.user_data['history'] = []
+    await update.message.reply_text(
+        "Context reset. New conversation begins."
+    )
+    logger.info(f"Context reset for user {update.effective_user.first_name}")
 
 
 ## Help Command
@@ -122,7 +139,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE, llm
     user_id = update.effective_user.id
     logger.info(f"Message from user {user_id}: {user_message}")
 
-    user_system_prompt = context.user_data.get("system_prompt")
+    history: list[dict] = context.user_data.get("history", [])
+    history.append({"role": "user", "content": user_message})
+
+
+    user_system_prompt = context.user_data.get("system_prompt", "You are a helpful assistant")
+    message_to_llm = [{"role": "system", "content": user_system_prompt}] + history
+
+    MAX_HISTORY_LENGTH = 40
+    if len(history) > MAX_HISTORY_LENGTH:
+        history = history[-MAX_HISTORY_LENGTH:]
+        message_to_llm = [{"role": "system", "content": user_system_prompt}] + history
+        logger.info(f"History truncated to the last {MAX_HISTORY_LENGTH} messages.")
+        await update.message.reply_text(
+            "History truncated to the last 40 messages."
+        )
 
     #llm_client = context.bot_data.get("deepseek_client")
     if not llm_client:
@@ -132,7 +163,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE, llm
         logger.error("DeepSeek client not found in bot data.")
         return
 
-    response = query_llm(llm_client, user_message, system_prompt=user_system_prompt)
+    response = query_llm(llm_client, message_to_llm)
+
+    history.append({"role": "assistant", "content": response})
+    context.user_data["history"] = history
 
     await update.message.reply_text(response)
 
@@ -169,6 +203,9 @@ def main():
 
     # /systemprompt <text>
     application.add_handler(CommandHandler("systemprompt", set_system_prompt))
+
+    # /reset_ctx
+    application.add_handler(CommandHandler("resetcontext", reset_context_command))
 
     #Inline button callback
     application.add_handler(CallbackQueryHandler(callback_query_handler))
