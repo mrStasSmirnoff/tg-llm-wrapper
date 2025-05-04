@@ -1,0 +1,34 @@
+{
+    "welcome": {
+      "en": "👋 *Hello!* I’m your DeepSeek bot.\n\n• Send me any text and I’ll forward it to the LLM.\n• To set a custom *system prompt*, click the button below or type:\n`/systemprompt <your prompt>`",
+      "ru": "👋 *Привет!* Это бот DeepSeek.\n\n• Напиши любой текст — я отправлю его в LLM.\n• Чтобы задать *system prompt*, нажми кнопку ниже или введи:\n`/systemprompt <ваш промпт>`"
+    },
+    "button_edit": {
+      "en": "📝 Edit Prompt",
+      "ru": "📝 Изменить промпт"
+    },
+    "button_reset": {
+      "en": "🔄 Reset Context",
+      "ru": "🔄 Сброс контекста"
+    },
+    "ask_prompt": {
+      "en": "✏️ *Enter a new system prompt:*\n`/systemprompt <your prompt>`",
+      "ru": "✏️ *Введите новый system prompt:*\n`/systemprompt <ваш промпт>`"
+    },
+    "prompt_saved": {
+      "en": "✅ System prompt updated!",
+      "ru": "✅ Системный промпт обновлён!"
+    },
+    "history_trim": {
+      "en": "⚠️ History truncated to the last 40 messages.",
+      "ru": "⚠️ История сокращена до последних 40 сообщений."
+    },
+    "ctx_reset": {
+      "en": "🗑️ Context reset. New conversation begins.",
+      "ru": "🗑️ Контекст очищен. Начинаем заново."
+    },
+    "help": {
+      "en": "**Commands**\n/start – show buttons\n/systemprompt – set prompt\n/resetcontext – clear history\n/help – help",
+      "ru": "**Команды**\n/start – показать кнопки\n/systemprompt – задать промпт\n/resetcontext – очистить историю\n/help – помощь"
+    }
+  }
