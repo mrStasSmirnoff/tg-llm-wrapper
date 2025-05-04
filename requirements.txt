@@ -5,3 +5,4 @@ python-dotenv==1.0.1
 python-telegram-bot==21.6
 openai==1.72.0
 flask==2.3.2
+requests==2.31.0
