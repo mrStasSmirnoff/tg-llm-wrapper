@@ -4,6 +4,8 @@
 import os
 import logging
 import sys
+import json
+from pathlib import Path
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
@@ -33,16 +35,36 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 BASE_URL = "https://api.deepseek.com"
 
+LOCAL_LANG = json.loads(Path("locale.json").read_text(encoding="utf-8"))
+
+## TODO: move to helpers
+def t(key: str, user_lang: str = "en") -> str:
+    """
+    Translate (t) a key to the specified language
+    """
+    lang = user_lang if user_lang in ("ru", "en") else "en"
+    return LOCAL_LANG.get(key, {}).get(lang, LOCAL_LANG.get(key, {}).get("en", ""))
+
+
+def get_lang(update: Update) -> str:
+    """Detect user language, default to 'en'."""
+    code = update.effective_user.language_code or ""
+    return "ru" if code.startswith("ru") else "en"
+
+
 ## /start COMMAND
 ## inline button example: https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/inlinekeyboard.py
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Sends a welcome message when the command /start is issued
     """
+    lang = get_lang(update) # TODO: write a wrapper for lang
     logger.info(f"Received /start command from {update.effective_user.first_name}")
 
     keyboard = [
-        [InlineKeyboardButton("Edit System Prompt", callback_data='edit_system_prompt')],
+        [InlineKeyboardButton(t("button_edit", lang), callback_data='edit_system_prompt')],
+        [InlineKeyboardButton(t("button_reset", lang), callback_data='reset_ctx')],
+        [InlineKeyboardButton(t("button_show", lang), callback_data='show_prompt')]
     ]
     # a lightweight container that tells Telegram how to arrange one or more buttons into rows/columns
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -53,7 +75,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "/systemprompt <Your prompt here>"
     )
 
-    await update.message.reply_text(welcome_text, reply_markup=reply_markup)
+    await update.message.reply_text(
+        t("welcome", lang),
+        reply_markup=reply_markup,
+        parse_mode="Markdown")
 
 ## Inline Button Callback
 ## relevant docs: https://core.telegram.org/bots/2-0-intro
@@ -64,16 +89,29 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     This is called whenever a user clicks an inline button.
     We look at 'callback_data' to see what the user clicked.
     """
+    lang = get_lang(update)
     query = update.callback_query
-
     await query.answer()
 
     if query.data == "edit_system_prompt":
         # If the user clicks "Edit System Prompt," instruct them to use /systemprompt
         await query.message.reply_text(
-            "Please enter a new system prompt with:\n"
-            "/systemprompt <Your new prompt>"
+            t("ask_prompt", lang),
+            parse_mode="Markdown"
         )
+    elif query.data == "reset_ctx":
+        context.user_data['history'] = []
+        await query.message.reply_text(
+            t("ctx_reset", lang),
+            parse_mode="Markdown"
+        )
+    elif query.data == "show_prompt":
+        prompt = context.user_data.get("system_prompt")
+        if prompt:
+            text = t("show_prompt", lang).format(prompt=prompt)
+        else:
+            text = t("no_prompt", lang)
+        await query.message.reply_text(text, parse_mode="Markdown")
 
 
 ## System Prompt Command
@@ -83,46 +121,84 @@ async def set_system_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE)-
     Set a custom system prompt for the LLM.
     its stored in the context.user_data so each user has their own system prompt
     """
+    lang = get_lang(update)
     prompt_text = ' '.join(context.args).strip()
     if not prompt_text:
         await update.message.reply_text(
-            "Usage: /systemprompt <Your system prompt>\n"
-            "Please type some text after the command."
+            t("ask_prompt", lang),
+            parse_mode="Markdown"
         )
         return
 
     context.user_data["system_prompt"] = prompt_text
     await update.message.reply_text(
-        f"System prompt updated!\nYour current system prompt:\n{prompt_text}"
+        f"{t('prompt_saved', lang)}\nYour current system prompt(Системный промпт):\n{prompt_text}",
+        parse_mode="Markdown"
     )
 
+# Current system prompt
+async def show_prompt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_lang(update)
+    prompt = context.user_data.get("system_prompt", None)
+    if prompt:
+        text = t("show_prompt", lang).format(prompt=prompt)
+    else:
+        text = t("no_prompt", lang)
+    await update.message.reply_text(text, parse_mode="Markdown")
 
-## Help Command
+
+async def reset_context_command(update: Update, context: ContextTypes.DEFAULT_TYPE)-> None:
+    """
+    /resetcontext:
+    Reset the context for the current user.
+    """
+    lang = get_lang(update)
+    context.user_data['history'] = []
+    await update.message.reply_text(
+        t("ctx_reset", lang),
+        parse_mode="Markdown"
+    )
+    logger.info(f"Context reset for user {update.effective_user.first_name}")
+
+
+## Help Command (/help)
 async def help_command(update, context):
     """
     Help command to show usage info
     """
-    help_text = (
-        "I am an interface to LLM. Type your question, and I'll pass it on.\n\n"
-        "Commands:\n"
-        "/start — Greet and show inline button\n"
-        "/systemprompt <text> — Update your system prompt\n"
-        "/help — Show this help message\n\n"
-        "You can also click the 'Edit System Prompt' button from /start to do the same."
-    )
-    await update.message.reply_text(help_text)
+    lang = get_lang(update)
+    await update.message.reply_text(t("help", lang), parse_mode="Markdown")
 
-## User Message Handler
+## User Message Handler (history & LLM call)
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE, llm_client):
     """
     Handle incoming messages and forward them to the LLM.
     """
-
+    lang = get_lang(update)
     user_message = update.message.text
     user_id = update.effective_user.id
     logger.info(f"Message from user {user_id}: {user_message}")
 
-    user_system_prompt = context.user_data.get("system_prompt")
+    history: list[dict] = context.user_data.get("history", [])
+    history.append({"role": "user", "content": user_message})
+
+
+    user_system_prompt = context.user_data.get("system_prompt", "You are a helpful assistant")
+    if user_system_prompt:
+        system_msg = {"role": "system", "content": user_system_prompt}
+        messages_to_llm = [system_msg] + history
+    else:
+        messages_to_llm = history
+
+    MAX_HISTORY_LENGTH = 40
+    if len(history) > MAX_HISTORY_LENGTH:
+        history = history[-MAX_HISTORY_LENGTH:]
+        messages_to_llm = [{"role": "system", "content": user_system_prompt}] + history
+        logger.info(f"History truncated to the last {MAX_HISTORY_LENGTH} messages.")
+        await update.message.reply_text(
+            t("history_trim", lang),
+            parse_mode="Markdown"
+        )
 
     #llm_client = context.bot_data.get("deepseek_client")
     if not llm_client:
@@ -132,7 +208,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE, llm
         logger.error("DeepSeek client not found in bot data.")
         return
 
-    response = query_llm(llm_client, user_message, system_prompt=user_system_prompt)
+    response = query_llm(llm_client, messages_to_llm)
+
+    history.append({"role": "assistant", "content": response})
+    context.user_data["history"] = history
 
     await update.message.reply_text(response)
 
@@ -169,6 +248,12 @@ def main():
 
     # /systemprompt <text>
     application.add_handler(CommandHandler("systemprompt", set_system_prompt))
+
+    # /reset_ctx
+    application.add_handler(CommandHandler("resetcontext", reset_context_command))
+
+    # /showprompt
+    application.add_handler(CommandHandler("showprompt", show_prompt_command))
 
     #Inline button callback
     application.add_handler(CallbackQueryHandler(callback_query_handler))

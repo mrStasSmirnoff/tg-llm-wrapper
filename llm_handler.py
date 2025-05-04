@@ -10,20 +10,14 @@ logging.basicConfig(
 )
 
 
-def query_llm(llm_client, user_message, system_prompt=None):
+def query_llm(llm_client, messages):
     """
     Send the user's message (plus a system prompt, if any) to DeepSeek and return the response.
     """
-    if not system_prompt:
-        system_prompt = "You are a helpful assistant. Answer the user's questions as accurately as possible."
-
     try:
         response = llm_client.chat.completions.create(
             model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
-            ],
+            messages=messages,
             stream=False,
         )
         result_text = response.choices[0].message.content
