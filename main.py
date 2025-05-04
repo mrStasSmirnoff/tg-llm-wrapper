@@ -20,6 +20,8 @@ from telegram.ext import (
     CallbackQueryHandler,
     filters
 )
+from flask import Flask
+from threading import Thread
 from functools import partial
 from openai import OpenAI
 from llm_handler import query_llm
@@ -39,6 +41,17 @@ DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 BASE_URL = "https://api.deepseek.com"
 
 LOCAL_LANG = json.loads(Path("locale.json").read_text(encoding="utf-8"))
+
+app = Flask(__name__)
+
+@app.route("/")
+def healthcheck():
+    return "OK", 200
+
+def run_health_server():
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, use_reloader=False)
+
 
 ## TODO: move to helpers
 def t(key: str, user_lang: str = "en") -> str:
