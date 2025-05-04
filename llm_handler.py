@@ -14,9 +14,6 @@ def query_llm(llm_client, messages):
     """
     Send the user's message (plus a system prompt, if any) to DeepSeek and return the response.
     """
-    if not system_prompt:
-        system_prompt = "You are a helpful assistant. Answer the user's questions as accurately as possible."
-
     try:
         response = llm_client.chat.completions.create(
             model="deepseek-chat",
