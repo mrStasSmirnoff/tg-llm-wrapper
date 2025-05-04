@@ -21,7 +21,6 @@ from telegram.ext import (
     filters
 )
 from flask import Flask
-from threading import Thread
 from functools import partial
 from openai import OpenAI
 from llm_handler import query_llm
@@ -304,5 +303,6 @@ def main():
 
 
 if __name__ == '__main__':
+    Thread(target=run_health_server, daemon=True).start()
     Thread(target=self_ping, daemon=True).start()
     main()
