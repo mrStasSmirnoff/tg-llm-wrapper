@@ -5,6 +5,9 @@ import os
 import logging
 import sys
 import json
+import requests
+import time
+from threading import Thread
 from pathlib import Path
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -50,6 +53,21 @@ def get_lang(update: Update) -> str:
     """Detect user language, default to 'en'."""
     code = update.effective_user.language_code or ""
     return "ru" if code.startswith("ru") else "en"
+
+
+def self_ping():
+    host = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+    if not host:
+        return
+    url = f"https://{host}/"
+    while True:
+        try:
+            requests.get(url, timeout=5)
+            logger.info("Self‑ping is successful")
+        except Exception as e:
+            logger.warning(f"Self‑ping failed: {e}")
+        time.sleep(540) # 9 minutes
+
 
 
 ## /start COMMAND
@@ -273,4 +291,5 @@ def main():
 
 
 if __name__ == '__main__':
+    Thread(target=self_ping, daemon=True).start()
     main()
